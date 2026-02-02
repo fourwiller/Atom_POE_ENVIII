@@ -414,7 +414,7 @@ Gateway: <span id="curgw">--</span><br>
 Subnet: <span id="cursn">--</span>
 </div>
 </div>
-<form id="form" method="POST" action="/config">
+<form id="form">
 <div class="card">
 <h2>Network Settings</h2>
 <label>Device Name</label>
@@ -574,10 +574,6 @@ pre{background:#0f3460;padding:12px;border-radius:6px;font-size:0.75em;overflow-
 <div class="endpoint">
 <span class="method">GET</span> <a href="/api/bootlog" class="url">/api/bootlog</a> <span class="format">TEXT</span>
 <div class="desc">Boot log for debugging</div>
-</div>
-<div class="endpoint">
-<span class="method">POST</span> <span class="url">/config</span> <span class="format">FORM</span>
-<div class="desc">Save config (name, ip, gw, sn, speed)</div>
 </div>
 </div>
 
@@ -1478,8 +1474,6 @@ void handleConfigSave(EthernetClient& client) {
       timeout = millis();
     }
   }
-
-  Serial.println("Config body: " + body);
 
   // Parse form data
   String newName = "";
