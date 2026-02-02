@@ -464,6 +464,7 @@ Subnet: <span id="cursn">--</span>
 </form>
 <div class="card">
 <h2>Maintenance</h2>
+<button class="btn" id="rebootbtn">Reboot Device</button>
 <button class="btn" onclick="location.href='/update'">Firmware Update</button>
 <button class="btn btn-red" id="resetbtn">Factory Reset</button>
 </div>
@@ -520,6 +521,18 @@ data+='&senloc='+encodeURIComponent(document.getElementById('senloc').value);
 data+='&senht='+encodeURIComponent(document.getElementById('senht').value);
 data+='&speed='+document.getElementById('speed').value;
 x.send(data);
+});
+document.getElementById('rebootbtn').addEventListener('click',function(){
+var pwd=prompt('Enter password to reboot:');
+if(!pwd)return;
+var x=new XMLHttpRequest();
+x.open('POST','/reboot',true);
+x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+x.onload=function(){
+if(x.status==200){alert('Device rebooting...');setTimeout(function(){location.reload();},5000);}
+else{alert('Error: '+x.responseText);}
+};
+x.send('password='+encodeURIComponent(pwd));
 });
 document.getElementById('resetbtn').addEventListener('click',function(){
 var pwd=prompt('Enter password to factory reset:');
@@ -1247,6 +1260,10 @@ bool handleClient() {
     handleConfigSave(client);
     return true;
   }
+  else if (requestLine.startsWith("POST /reboot")) {
+    handleReboot(client);
+    return true;
+  }
   else if (requestLine.startsWith("POST /reset")) {
     handleFactoryReset(client);
     return true;
@@ -1660,6 +1677,40 @@ void handleConfigSave(EthernetClient& client) {
     client.println();
     client.println("Invalid configuration");
   }
+}
+
+void handleReboot(EthernetClient& client) {
+  // Read POST body
+  String body = "";
+  unsigned long timeout = millis();
+  while (client.connected() && (millis() - timeout < 2000)) {
+    if (client.available()) {
+      body += (char)client.read();
+      timeout = millis();
+    }
+  }
+
+  // Verify password
+  String pwd = getFormValue(body, "password");
+  if (pwd != OTA_PASSWORD) {
+    client.println("HTTP/1.1 401 Unauthorized");
+    client.println("Content-Type: text/plain");
+    client.println("Connection: close");
+    client.println();
+    client.println("Invalid password");
+    return;
+  }
+
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/plain");
+  client.println("Connection: close");
+  client.println();
+  client.println("Rebooting...");
+  client.flush();
+  client.stop();
+
+  delay(500);
+  ESP.restart();
 }
 
 void handleFactoryReset(EthernetClient& client) {
