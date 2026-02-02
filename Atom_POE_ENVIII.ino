@@ -416,9 +416,14 @@ Subnet: <span id="cursn">--</span>
 </div>
 <form id="form">
 <div class="card">
-<h2>Network Settings</h2>
+<h2>Device Settings</h2>
 <label>Device Name</label>
 <input type="text" name="name" id="name" maxlength="32">
+<label>Device Location</label>
+<input type="text" name="devloc" id="devloc" maxlength="64" placeholder="e.g., Data Center Room 1">
+</div>
+<div class="card">
+<h2>Network Settings</h2>
 <label>IP Address</label>
 <input type="text" name="ip" id="ip" placeholder="10.200.45.63">
 <label>Gateway</label>
@@ -428,6 +433,12 @@ Subnet: <span id="cursn">--</span>
 </div>
 <div class="card">
 <h2>Sensor Settings</h2>
+<label>Sensor Name</label>
+<input type="text" name="senname" id="senname" maxlength="32" placeholder="e.g., ENV III">
+<label>Sensor Location</label>
+<input type="text" name="senloc" id="senloc" maxlength="64" placeholder="e.g., Server Rack A">
+<label>Sensor Height</label>
+<input type="text" name="senht" id="senht" maxlength="32" placeholder="e.g., 6 ft or 1.8m">
 <label>Sensor Read Speed</label>
 <select name="speed" id="speed">
 <optgroup label="Adaptive (adjusts with CPU load)">
@@ -468,9 +479,13 @@ document.getElementById('curip').textContent=j.ip;
 document.getElementById('curgw').textContent=j.gateway;
 document.getElementById('cursn').textContent=j.subnet;
 document.getElementById('name').value=j.name;
+document.getElementById('devloc').value=j.device_location||'';
 document.getElementById('ip').value=j.ip;
 document.getElementById('gw').value=j.gateway;
 document.getElementById('sn').value=j.subnet;
+document.getElementById('senname').value=j.sensor_name||'ENV III';
+document.getElementById('senloc').value=j.sensor_location||'';
+document.getElementById('senht').value=j.sensor_height||'';
 document.getElementById('speed').value=j.speed||0;
 }
 };
@@ -490,9 +505,13 @@ document.getElementById('status').textContent='Error: '+x.responseText;
 }
 };
 var data='name='+encodeURIComponent(document.getElementById('name').value);
+data+='&devloc='+encodeURIComponent(document.getElementById('devloc').value);
 data+='&ip='+document.getElementById('ip').value;
 data+='&gw='+document.getElementById('gw').value;
 data+='&sn='+document.getElementById('sn').value;
+data+='&senname='+encodeURIComponent(document.getElementById('senname').value);
+data+='&senloc='+encodeURIComponent(document.getElementById('senloc').value);
+data+='&senht='+encodeURIComponent(document.getElementById('senht').value);
 data+='&speed='+document.getElementById('speed').value;
 x.send(data);
 });
@@ -708,7 +727,9 @@ void loadConfig() {
   prefs.end();
 }
 
-void saveConfig(IPAddress newIP, IPAddress newGW, IPAddress newSN, const char* newName, uint8_t newSpeed) {
+void saveConfig(IPAddress newIP, IPAddress newGW, IPAddress newSN, const char* newName,
+                 const char* newDevLoc, const char* newSenName, const char* newSenLoc,
+                 const char* newSenHeight, uint8_t newSpeed) {
   prefs.begin("enviii", false);  // Read-write
 
   prefs.putUChar("ip0", newIP[0]);
@@ -729,6 +750,14 @@ void saveConfig(IPAddress newIP, IPAddress newGW, IPAddress newSN, const char* n
   if (newName && strlen(newName) > 0) {
     prefs.putString("devname", newName);
   }
+
+  // Device location
+  prefs.putString("devloc", newDevLoc ? newDevLoc : "");
+
+  // Sensor settings
+  prefs.putString("senname", newSenName ? newSenName : "ENV III");
+  prefs.putString("senloc", newSenLoc ? newSenLoc : "");
+  prefs.putString("senht", newSenHeight ? newSenHeight : "");
 
   if (newSpeed <= 5) {
     prefs.putUChar("speed", newSpeed);
@@ -752,6 +781,34 @@ String getDeviceName() {
   String name = prefs.getString("devname", DEVICE_NAME);
   prefs.end();
   return name;
+}
+
+String getDeviceLocation() {
+  prefs.begin("enviii", true);
+  String loc = prefs.getString("devloc", "");
+  prefs.end();
+  return loc;
+}
+
+String getSensorName() {
+  prefs.begin("enviii", true);
+  String name = prefs.getString("senname", "ENV III");
+  prefs.end();
+  return name;
+}
+
+String getSensorLocation() {
+  prefs.begin("enviii", true);
+  String loc = prefs.getString("senloc", "");
+  prefs.end();
+  return loc;
+}
+
+String getSensorHeight() {
+  prefs.begin("enviii", true);
+  String height = prefs.getString("senht", "");
+  prefs.end();
+  return height;
 }
 
 String getMacString() {
@@ -1398,17 +1455,19 @@ void sendConfigPage(EthernetClient& client) {
 }
 
 void sendConfigJSON(EthernetClient& client) {
-  char json[400];
+  char json[600];
 
   int len = snprintf(json, sizeof(json),
-    "{\"name\":\"%s\",\"firmware\":\"%s\","
+    "{\"name\":\"%s\",\"device_location\":\"%s\",\"firmware\":\"%s\","
     "\"mac\":\"%s\",\"ip\":\"%s\",\"gateway\":\"%s\",\"subnet\":\"%s\","
+    "\"sensor_name\":\"%s\",\"sensor_location\":\"%s\",\"sensor_height\":\"%s\","
     "\"speed\":%d,\"env\":%s}",
-    getDeviceName().c_str(), FW_VERSION,
+    getDeviceName().c_str(), getDeviceLocation().c_str(), FW_VERSION,
     getMacString().c_str(),
     getIPString(Ethernet.localIP()).c_str(),
     getIPString(gateway).c_str(),
     getIPString(subnet).c_str(),
+    getSensorName().c_str(), getSensorLocation().c_str(), getSensorHeight().c_str(),
     sensorSpeedProfile,
     envConnected ? "true" : "false");
 
@@ -1464,6 +1523,31 @@ void send404(EthernetClient& client) {
   client.println("404 Not Found");
 }
 
+// Helper to URL decode a string
+String urlDecode(String input) {
+  input.replace('+', ' ');
+  input.replace("%20", " ");
+  input.replace("%21", "!");
+  input.replace("%27", "'");
+  input.replace("%28", "(");
+  input.replace("%29", ")");
+  input.replace("%2C", ",");
+  input.replace("%2F", "/");
+  input.replace("%3A", ":");
+  return input;
+}
+
+// Helper to extract form field value
+String getFormValue(const String& body, const char* field) {
+  String search = String(field) + "=";
+  int idx = body.indexOf(search);
+  if (idx < 0) return "";
+  int start = idx + search.length();
+  int end = body.indexOf('&', start);
+  if (end < 0) end = body.length();
+  return urlDecode(body.substring(start, end));
+}
+
 void handleConfigSave(EthernetClient& client) {
   String body = "";
   unsigned long timeout = millis();
@@ -1476,20 +1560,16 @@ void handleConfigSave(EthernetClient& client) {
   }
 
   // Parse form data
-  String newName = "";
   IPAddress newIP, newGW, newSN;
   bool valid = true;
 
-  int idx = body.indexOf("name=");
-  if (idx >= 0) {
-    int end = body.indexOf('&', idx);
-    if (end < 0) end = body.length();
-    newName = body.substring(idx + 5, end);
-    newName.replace('+', ' ');
-    newName.replace("%20", " ");
-  }
+  String newName = getFormValue(body, "name");
+  String newDevLoc = getFormValue(body, "devloc");
+  String newSenName = getFormValue(body, "senname");
+  String newSenLoc = getFormValue(body, "senloc");
+  String newSenHeight = getFormValue(body, "senht");
 
-  idx = body.indexOf("ip=");
+  int idx = body.indexOf("ip=");
   if (idx >= 0) {
     int end = body.indexOf('&', idx);
     if (end < 0) end = body.length();
@@ -1521,7 +1601,8 @@ void handleConfigSave(EthernetClient& client) {
   }
 
   if (valid) {
-    saveConfig(newIP, newGW, newSN, newName.c_str(), newSpeed);
+    saveConfig(newIP, newGW, newSN, newName.c_str(), newDevLoc.c_str(),
+               newSenName.c_str(), newSenLoc.c_str(), newSenHeight.c_str(), newSpeed);
 
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: text/plain");
