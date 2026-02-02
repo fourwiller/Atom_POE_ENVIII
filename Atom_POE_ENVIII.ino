@@ -455,9 +455,6 @@ Subnet: <span id="cursn">--</span>
 <div class="speed-info">Adaptive modes back off when CPU is busy. Fixed modes maintain constant rate.</div>
 </div>
 <div class="card">
-<h2>Authentication</h2>
-<label>Password (required to save changes)</label>
-<input type="password" name="password" id="password" placeholder="Enter password">
 <button type="submit" class="btn">Save & Reboot</button>
 <div id="status"></div>
 </div>
@@ -497,7 +494,7 @@ x.send();
 }
 document.getElementById('form').addEventListener('submit',function(e){
 e.preventDefault();
-var pwd=document.getElementById('password').value;
+var pwd=prompt('Enter password to save settings:');
 if(!pwd){document.getElementById('status').textContent='Password required';return;}
 var x=new XMLHttpRequest();
 x.open('POST','/config',true);
@@ -506,6 +503,8 @@ x.onload=function(){
 if(x.status==200){
 document.getElementById('status').textContent='Saved! Rebooting...';
 setTimeout(function(){location.href='http://'+document.getElementById('ip').value+'/';},3000);
+}else if(x.status==401){
+document.getElementById('status').textContent='Invalid password';
 }else{
 document.getElementById('status').textContent='Error: '+x.responseText;
 }
@@ -530,6 +529,7 @@ x.open('POST','/reboot',true);
 x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
 x.onload=function(){
 if(x.status==200){alert('Device rebooting...');setTimeout(function(){location.reload();},5000);}
+else if(x.status==401){alert('Invalid password');}
 else{alert('Error: '+x.responseText);}
 };
 x.send('password='+encodeURIComponent(pwd));
@@ -543,6 +543,7 @@ x.open('POST','/reset',true);
 x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
 x.onload=function(){
 if(x.status==200){alert('Reset complete. Device rebooting...');location.href='/';}
+else if(x.status==401){alert('Invalid password');}
 else{alert('Error: '+x.responseText);}
 };
 x.send('password='+encodeURIComponent(pwd));
