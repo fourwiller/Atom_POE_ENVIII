@@ -1311,7 +1311,7 @@ void sendHtml(EthernetClient& client) {
 }
 
 void sendStatusJSON(EthernetClient& client) {
-  char json[768];
+  char json[1024];
   const char* cpuStates[] = {"idle", "light", "moderate", "busy"};
   float temp_f = (temperature * 9.0 / 5.0) + 32.0;
   float pressure_inwc = pressure * 0.401463;
@@ -1320,6 +1320,7 @@ void sendStatusJSON(EthernetClient& client) {
     "{"
     "\"device\":{"
       "\"name\":\"%s\","
+      "\"location\":\"%s\","
       "\"firmware\":\"%s\","
       "\"ip\":\"%s\","
       "\"mac\":\"%s\","
@@ -1328,6 +1329,9 @@ void sendStatusJSON(EthernetClient& client) {
     "\"sensors\":["
       "{"
         "\"id\":\"env3\","
+        "\"name\":\"%s\","
+        "\"location\":\"%s\","
+        "\"height\":\"%s\","
         "\"type\":\"SHT30+QMP6988\","
         "\"connected\":%s,"
         "\"temperature\":{\"c\":%.2f,\"f\":%.2f},"
@@ -1340,9 +1344,10 @@ void sendStatusJSON(EthernetClient& client) {
       "\"cpu_state\":\"%s\""
     "}"
     "}",
-    getDeviceName().c_str(), FW_VERSION,
+    getDeviceName().c_str(), getDeviceLocation().c_str(), FW_VERSION,
     getIPString(Ethernet.localIP()).c_str(), getMacString().c_str(),
     getUptimeString().c_str(),
+    getSensorName().c_str(), getSensorLocation().c_str(), getSensorHeight().c_str(),
     envConnected ? "true" : "false",
     temperature, temp_f, humidity, pressure, pressure_inwc,
     cpuPercent, cpuStates[cpuLevel]);
@@ -1356,7 +1361,7 @@ void sendStatusJSON(EthernetClient& client) {
 }
 
 void sendSensorsJSON(EthernetClient& client) {
-  char json[512];
+  char json[640];
   float temp_f = (temperature * 9.0 / 5.0) + 32.0;
   float pressure_inwc = pressure * 0.401463;
 
@@ -1364,6 +1369,9 @@ void sendSensorsJSON(EthernetClient& client) {
     "{\"sensors\":["
       "{"
         "\"id\":\"env3\","
+        "\"name\":\"%s\","
+        "\"location\":\"%s\","
+        "\"height\":\"%s\","
         "\"type\":\"SHT30+QMP6988\","
         "\"connected\":%s,"
         "\"temperature\":{\"c\":%.2f,\"f\":%.2f},"
@@ -1371,6 +1379,7 @@ void sendSensorsJSON(EthernetClient& client) {
         "\"pressure\":{\"hpa\":%.3f,\"inwc\":%.3f}"
       "}"
     "]}",
+    getSensorName().c_str(), getSensorLocation().c_str(), getSensorHeight().c_str(),
     envConnected ? "true" : "false",
     temperature, temp_f, humidity, pressure, pressure_inwc);
 
@@ -1397,6 +1406,7 @@ void sendStatusXML(EthernetClient& client) {
   client.println("<status>");
   client.println("  <device>");
   client.printf("    <name>%s</name>\n", getDeviceName().c_str());
+  client.printf("    <location>%s</location>\n", getDeviceLocation().c_str());
   client.printf("    <firmware>%s</firmware>\n", FW_VERSION);
   client.printf("    <ip>%s</ip>\n", getIPString(Ethernet.localIP()).c_str());
   client.printf("    <mac>%s</mac>\n", getMacString().c_str());
@@ -1404,6 +1414,9 @@ void sendStatusXML(EthernetClient& client) {
   client.println("  </device>");
   client.println("  <sensors>");
   client.println("    <sensor id=\"env3\" type=\"SHT30+QMP6988\">");
+  client.printf("      <name>%s</name>\n", getSensorName().c_str());
+  client.printf("      <location>%s</location>\n", getSensorLocation().c_str());
+  client.printf("      <height>%s</height>\n", getSensorHeight().c_str());
   client.printf("      <connected>%s</connected>\n", envConnected ? "true" : "false");
   client.println("      <temperature>");
   client.printf("        <c>%.2f</c>\n", temperature);
@@ -1438,6 +1451,9 @@ void sendSensorsXML(EthernetClient& client) {
   client.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
   client.println("<sensors>");
   client.println("  <sensor id=\"env3\" type=\"SHT30+QMP6988\">");
+  client.printf("    <name>%s</name>\n", getSensorName().c_str());
+  client.printf("    <location>%s</location>\n", getSensorLocation().c_str());
+  client.printf("    <height>%s</height>\n", getSensorHeight().c_str());
   client.printf("    <connected>%s</connected>\n", envConnected ? "true" : "false");
   client.println("    <temperature>");
   client.printf("      <c>%.2f</c>\n", temperature);
