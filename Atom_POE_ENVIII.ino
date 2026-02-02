@@ -495,7 +495,7 @@ x.send();
 document.getElementById('form').addEventListener('submit',function(e){
 e.preventDefault();
 var pwd=prompt('Enter password to save settings:');
-if(!pwd){document.getElementById('status').textContent='Password required';return;}
+if(!pwd)return;
 var x=new XMLHttpRequest();
 x.open('POST','/config',true);
 x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
@@ -504,11 +504,12 @@ if(x.status==200){
 document.getElementById('status').textContent='Saved! Rebooting...';
 setTimeout(function(){location.href='http://'+document.getElementById('ip').value+'/';},3000);
 }else if(x.status==401){
-document.getElementById('status').textContent='Invalid password';
+alert('Invalid password');
 }else{
-document.getElementById('status').textContent='Error: '+x.responseText;
+alert('Error: '+x.responseText);
 }
 };
+x.onerror=function(){alert('Connection error');};
 var data='password='+encodeURIComponent(pwd);
 data+='&name='+encodeURIComponent(document.getElementById('name').value);
 data+='&devloc='+encodeURIComponent(document.getElementById('devloc').value);
