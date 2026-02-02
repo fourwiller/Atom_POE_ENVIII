@@ -455,6 +455,9 @@ Subnet: <span id="cursn">--</span>
 <div class="speed-info">Adaptive modes back off when CPU is busy. Fixed modes maintain constant rate.</div>
 </div>
 <div class="card">
+<h2>Authentication</h2>
+<label>Password (required to save changes)</label>
+<input type="password" name="password" id="password" placeholder="Enter password">
 <button type="submit" class="btn">Save & Reboot</button>
 <div id="status"></div>
 </div>
@@ -462,7 +465,7 @@ Subnet: <span id="cursn">--</span>
 <div class="card">
 <h2>Maintenance</h2>
 <button class="btn" onclick="location.href='/update'">Firmware Update</button>
-<button class="btn btn-red" onclick="if(confirm('Reset all settings to defaults?'))location.href='/reset'">Factory Reset</button>
+<button class="btn btn-red" id="resetbtn">Factory Reset</button>
 </div>
 <div style="text-align:center;margin-top:15px"><a href="/">Dashboard</a> | <a href="/api">API Docs</a></div>
 <script>
@@ -493,6 +496,8 @@ x.send();
 }
 document.getElementById('form').addEventListener('submit',function(e){
 e.preventDefault();
+var pwd=document.getElementById('password').value;
+if(!pwd){document.getElementById('status').textContent='Password required';return;}
 var x=new XMLHttpRequest();
 x.open('POST','/config',true);
 x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
@@ -504,7 +509,8 @@ setTimeout(function(){location.href='http://'+document.getElementById('ip').valu
 document.getElementById('status').textContent='Error: '+x.responseText;
 }
 };
-var data='name='+encodeURIComponent(document.getElementById('name').value);
+var data='password='+encodeURIComponent(pwd);
+data+='&name='+encodeURIComponent(document.getElementById('name').value);
 data+='&devloc='+encodeURIComponent(document.getElementById('devloc').value);
 data+='&ip='+document.getElementById('ip').value;
 data+='&gw='+document.getElementById('gw').value;
@@ -514,6 +520,19 @@ data+='&senloc='+encodeURIComponent(document.getElementById('senloc').value);
 data+='&senht='+encodeURIComponent(document.getElementById('senht').value);
 data+='&speed='+document.getElementById('speed').value;
 x.send(data);
+});
+document.getElementById('resetbtn').addEventListener('click',function(){
+var pwd=prompt('Enter password to factory reset:');
+if(!pwd)return;
+if(!confirm('This will erase all settings. Continue?'))return;
+var x=new XMLHttpRequest();
+x.open('POST','/reset',true);
+x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+x.onload=function(){
+if(x.status==200){alert('Reset complete. Device rebooting...');location.href='/';}
+else{alert('Error: '+x.responseText);}
+};
+x.send('password='+encodeURIComponent(pwd));
 });
 load();
 </script>
@@ -1228,8 +1247,17 @@ bool handleClient() {
     handleConfigSave(client);
     return true;
   }
-  else if (requestLine.startsWith("GET /reset")) {
+  else if (requestLine.startsWith("POST /reset")) {
     handleFactoryReset(client);
+    return true;
+  }
+  else if (requestLine.startsWith("GET /reset")) {
+    // Reject GET requests - must use POST with password
+    client.println("HTTP/1.1 405 Method Not Allowed");
+    client.println("Content-Type: text/plain");
+    client.println("Connection: close");
+    client.println();
+    client.println("Use POST with password");
     return true;
   }
   else if (requestLine.startsWith("GET /update")) {
@@ -1559,6 +1587,17 @@ void handleConfigSave(EthernetClient& client) {
     }
   }
 
+  // Verify password first
+  String pwd = getFormValue(body, "password");
+  if (pwd != OTA_PASSWORD) {
+    client.println("HTTP/1.1 401 Unauthorized");
+    client.println("Content-Type: text/plain");
+    client.println("Connection: close");
+    client.println();
+    client.println("Invalid password");
+    return;
+  }
+
   // Parse form data
   IPAddress newIP, newGW, newSN;
   bool valid = true;
@@ -1624,16 +1663,34 @@ void handleConfigSave(EthernetClient& client) {
 }
 
 void handleFactoryReset(EthernetClient& client) {
+  // Read POST body
+  String body = "";
+  unsigned long timeout = millis();
+  while (client.connected() && (millis() - timeout < 2000)) {
+    if (client.available()) {
+      body += (char)client.read();
+      timeout = millis();
+    }
+  }
+
+  // Verify password
+  String pwd = getFormValue(body, "password");
+  if (pwd != OTA_PASSWORD) {
+    client.println("HTTP/1.1 401 Unauthorized");
+    client.println("Content-Type: text/plain");
+    client.println("Connection: close");
+    client.println();
+    client.println("Invalid password");
+    return;
+  }
+
   resetConfig();
 
   client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: text/html");
+  client.println("Content-Type: text/plain");
   client.println("Connection: close");
   client.println();
-  client.println("<html><body style='background:#1a1a2e;color:#fff;font-family:system-ui;text-align:center;padding:50px'>");
-  client.println("<h1 style='color:#4cc9f0'>Factory Reset Complete</h1>");
-  client.println("<p>Device will reboot with default settings.</p>");
-  client.println("</body></html>");
+  client.println("Factory reset complete. Rebooting...");
   client.flush();
   client.stop();
 
