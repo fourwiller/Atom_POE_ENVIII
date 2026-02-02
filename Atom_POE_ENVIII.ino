@@ -496,20 +496,6 @@ document.getElementById('form').addEventListener('submit',function(e){
 e.preventDefault();
 var pwd=prompt('Enter password to save settings:');
 if(!pwd)return;
-var x=new XMLHttpRequest();
-x.open('POST','/config',true);
-x.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-x.onload=function(){
-if(x.status==200){
-document.getElementById('status').textContent='Saved! Rebooting...';
-setTimeout(function(){location.href='http://'+document.getElementById('ip').value+'/';},3000);
-}else if(x.status==401){
-alert('Invalid password');
-}else{
-alert('Error: '+x.responseText);
-}
-};
-x.onerror=function(){alert('Connection error');};
 var data='password='+encodeURIComponent(pwd);
 data+='&name='+encodeURIComponent(document.getElementById('name').value);
 data+='&devloc='+encodeURIComponent(document.getElementById('devloc').value);
@@ -520,7 +506,13 @@ data+='&senname='+encodeURIComponent(document.getElementById('senname').value);
 data+='&senloc='+encodeURIComponent(document.getElementById('senloc').value);
 data+='&senht='+encodeURIComponent(document.getElementById('senht').value);
 data+='&speed='+document.getElementById('speed').value;
-x.send(data);
+fetch('/config',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data})
+.then(function(r){
+if(r.ok){document.getElementById('status').textContent='Saved! Rebooting...';setTimeout(function(){location.href='http://'+document.getElementById('ip').value+'/';},3000);}
+else if(r.status==401){alert('Invalid password');}
+else{r.text().then(function(t){alert('Error: '+t);});}
+})
+.catch(function(e){alert('Connection error: '+e);});
 });
 document.getElementById('rebootbtn').addEventListener('click',function(){
 var pwd=prompt('Enter password to reboot:');
