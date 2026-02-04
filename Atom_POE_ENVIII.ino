@@ -40,7 +40,7 @@ QMP6988 qmp6988;
 // ============== CONFIGURATION ==============
 // Default network settings (used if no saved config)
 byte mac[6];
-IPAddress ip(10, 200, 45, 63);
+IPAddress ip(10, 200, 45, 67);
 IPAddress gateway(10, 200, 45, 1);
 IPAddress subnet(255, 255, 252, 0);  // /22
 
@@ -1295,6 +1295,7 @@ bool handleClient() {
 void sendHtml(EthernetClient& client) {
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
+  client.println("Cache-Control: public, max-age=300");  // Cache for 5 minutes
   client.println("Connection: close");
   client.println();
 
@@ -1354,6 +1355,7 @@ void sendStatusJSON(EthernetClient& client) {
 
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: application/json");
+  client.println("Cache-Control: no-cache");  // Don't cache sensor data
   client.println("Access-Control-Allow-Origin: *");
   client.println("Connection: close");
   client.println();
@@ -1385,6 +1387,7 @@ void sendSensorsJSON(EthernetClient& client) {
 
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: application/json");
+  client.println("Cache-Control: no-cache");  // Don't cache sensor data
   client.println("Access-Control-Allow-Origin: *");
   client.println("Connection: close");
   client.println();
@@ -1494,6 +1497,7 @@ void sendBootlog(EthernetClient& client) {
 void sendConfigPage(EthernetClient& client) {
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
+  client.println("Cache-Control: public, max-age=300");  // Cache for 5 minutes
   client.println("Connection: close");
   client.println();
 
@@ -1537,6 +1541,7 @@ void sendConfigJSON(EthernetClient& client) {
 void sendApiPage(EthernetClient& client) {
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
+  client.println("Cache-Control: public, max-age=600");  // Cache for 10 minutes (static content)
   client.println("Connection: close");
   client.println();
 
@@ -1555,6 +1560,7 @@ void sendApiPage(EthernetClient& client) {
 void sendUpdatePage(EthernetClient& client) {
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
+  client.println("Cache-Control: public, max-age=600");  // Cache for 10 minutes (static content)
   client.println("Connection: close");
   client.println();
 
